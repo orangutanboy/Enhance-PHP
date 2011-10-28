@@ -362,7 +362,9 @@ class EnhanceFileSystem
                             $files[] = $this->getFilesFromDirectory($dir2, $isRecursive);
                         }
                     } else {
-                        $files[] = $directory . '/' . $file;
+						if (substr($file, 0, 1) != '.'){
+							$files[] = $directory . '/' . $file;
+						}
                     }
                 }
             }
