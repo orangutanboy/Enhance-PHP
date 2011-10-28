@@ -1,67 +1,60 @@
 <?php
-// Enhance Unit Testing Framework For PHP
-// Copyright 2011 Steve Fenton, Mark Jones
-// 
-// Version 1.9
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// 
-// http://www.apache.org/licenses/LICENSE-2.0
-// 
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-// http://www.enhance-php.com/
-// http://www.stevefenton.co.uk/
-// - Contributors
-// - PHP Code: Steve Fenton, Mark Jones
-//
 ini_set('error_reporting', (string)E_ALL);
 ini_set('display_errors', '1');
 
 // Public API
 class Enhance 
 {
+    /** @var EnhanceTestFramework $Instance */
     private static $Instance;
+    private static $Language = EnhanceLanguage::English;
 
-    public static function discoverTests($path) 
+    public static function getLanguage()
     {
-        if (self::$Instance === null) {
-            self::$Instance = new EnhanceTestFramework();
-        }
-        
-        self::$Instance->discoverTests($path);
+        return self::$Language;
+    }
+
+    public static function setLanguage($language)
+    {
+        self::$Language = $language;
+    }
+
+    public static function discoverTests($path, $isRecursive = true, $excludeRules = array())
+    {
+        self::setInstance();
+        self::$Instance->discoverTests($path, $isRecursive, $excludeRules);
     }
 
     public static function runTests($output = EnhanceOutputTemplateType::Html) 
     {
-        if (self::$Instance === null) {
-            self::$Instance = new EnhanceTestFramework();
-        }
-        
+        self::setInstance();
         self::$Instance->runTests($output);
     }
     
     public static function getCodeCoverageWrapper($className, $args = null) 
     {
+        self::setInstance();
         self::$Instance->registerForCodeCoverage($className);
         return new EnhanceProxy($className, $args);
     }
     
     public static function log($class, $methodName) 
     {
+        self::setInstance();
         $className = get_class($class);
         self::$Instance->log($className, $methodName);
     }
 	    
     public static function getScenario($className, $args = null) 
     {
-        return new EnhanceScenario($className, $args);
+        return new EnhanceScenario($className, $args, self::$Language);
+    }
+
+    public static function setInstance()
+    {
+        if (self::$Instance === null) {
+            self::$Instance = new EnhanceTestFramework(self::$Language);
+        }
     }
 }
 
@@ -76,7 +69,7 @@ class MockFactory
 {
     public static function createMock($typeName) 
     {
-        return new EnhanceMock($typeName, $isMock = true);
+        return new EnhanceMock($typeName, true, Enhance::getLanguage());
     }
 }
 
@@ -85,7 +78,7 @@ class StubFactory
 {
     public static function createStub($typeName) 
     {
-        return new EnhanceMock($typeName, $isMock = false);
+        return new EnhanceMock($typeName, false, Enhance::getLanguage());
     }
 }
 
@@ -96,19 +89,19 @@ class Expect
 
     public static function method($methodName) 
     {
-        $expectation = new EnhanceExpectation();
+        $expectation = new EnhanceExpectation(Enhance::getLanguage());
         return $expectation->method($methodName);
     }
     
     public static function getProperty($propertyName) 
     {
-        $expectation = new EnhanceExpectation();
+        $expectation = new EnhanceExpectation(Enhance::getLanguage());
         return $expectation->getProperty($propertyName);
     }
     
     public static function setProperty($propertyName) 
     {
-        $expectation = new EnhanceExpectation();
+        $expectation = new EnhanceExpectation(Enhance::getLanguage());
         return $expectation->setProperty($propertyName);
     }
 }
@@ -116,12 +109,13 @@ class Expect
 // Public API
 class Assert 
 {
+    /** @var EnhanceAssertions $EnhanceAssertions */
     private static $EnhanceAssertions;
     
     private static function GetEnhanceAssertionsInstance() 
     {
         if(self::$EnhanceAssertions === null) {
-            self::$EnhanceAssertions = new EnhanceAssertions();
+            self::$EnhanceAssertions = new EnhanceAssertions(Enhance::getLanguage());
         }
         return self::$EnhanceAssertions;
     }
@@ -200,40 +194,70 @@ class TextFactory
 {
     public static $Text;
 
-    public static function getLanguageText() 
+    public static function getLanguageText($language)
     {
         if (self::$Text === null) {
-            // Currently supports "en"
-            self::$Text = new TextEn();
+            $languageClass = 'Text' . $language;
+            self::$Text = new $languageClass();
         }
         return self::$Text;
     }
 }
 
-class TextEn 
+class TextEn
 {
+    public $FormatForTestRunTook = 'Test run took {0} seconds';
+    public $FormatForExpectedButWas = 'Expected {0} but was {1}';
+    public $FormatForExpectedNotButWas = 'Expected NOT {0} but was {1}';
+    public $FormatForExpectedContainsButWas = 'Expected to contain {0} but was {1}';
+    public $FormatForExpectedNotContainsButWas = 'Expected NOT to contain {0} but was {1}';
     public $EnhanceTestFramework = 'Enhance Test Framework';
     public $EnhanceTestFrameworkFull = 'Enhance PHP Unit Testing Framework';
     public $TestResults = 'Test Results';
     public $Test = 'Test';
+    public $TestPassed = 'Test Passed';
+    public $TestFailed = 'Test Failed';
     public $Passed = 'Passed';
     public $Failed = 'Failed';
-    public $TestRunTook = 'Test run took';
-    public $Seconds = 'seconds';
     public $ExpectationFailed = 'Expectation failed';
     public $Expected = 'Expected';
     public $Called = 'Called';
-    public $ExpectedNot = 'Expected NOT';
-    public $ButWas = 'but was';
-    public $ContainedInString = 'contained in string';
-    public $InconclusiveOrNotImplemented = 'inconclusive or not implemented';
+    public $InconclusiveOrNotImplemented = 'Inconclusive or not implemented';
     public $Times = 'Times';
     public $MethodCoverage = 'Method Coverage';
     public $Copyright = 'Copyright';
-    public $Exception = 'Exception';
+    public $ExpectedExceptionNotThrown = 'Expected exception was not thrown';
     public $CannotCallVerifyOnStub = 'Cannot call VerifyExpectations on a stub';
     public $ReturnsOrThrowsNotBoth = 'You must only set a single return value (1 returns() or 1 throws())';
-    public $ScenarioWithExpectMismatch = 'Scenario must be initialised with the same number of \'with\' and \'expect\' calls';
+    public $ScenarioWithExpectMismatch = 'Scenario must be initialised with the same number of "with" and "expect" calls';
+}
+
+class TextDe
+{
+    public $FormatForTestRunTook = 'Fertig nach {0} Sekunden';
+    public $FormatForExpectedButWas = 'Erwartet {0} aber war {1}';
+    public $FormatForExpectedNotButWas = 'Erwartet nicht {0} aber war {1}';
+    public $FormatForExpectedContainsButWas = 'Erwartet {0} zu enthalten, aber war {1}';
+    public $FormatForExpectedNotContainsButWas = 'Erwartet {0} nicht zu enthalten, aber war {1}';
+    public $EnhanceTestFramework = 'Enhance Test-Rahmen';
+    public $EnhanceTestFrameworkFull = 'Maßeinheits-Prüfungs-Rahmen';
+    public $TestResults = 'Testergebnisse';
+    public $Test = 'Test';
+    public $TestPassed = 'Test bestehen';
+    public $TestFailed = 'Test durchfallen';
+    public $Passed = 'Bestehen';
+    public $Failed = 'Durchfallen';
+    public $ExpectationFailed = 'Erwartung durchfallen';
+    public $Expected = 'Erwartet';
+    public $Called = 'Benannt';
+    public $InconclusiveOrNotImplemented = 'Unbestimmt oder nicht durchgefuert';
+    public $Times = 'Ereignisse';
+    public $MethodCoverage = 'Methodenbehandlung';
+    public $Copyright = 'Copyright';
+    public $ExpectedExceptionNotThrown = 'Die Ausnahme wird nicht ausgeloest';
+    public $CannotCallVerifyOnStub = 'Kann VerifyExpectations auf einem Stub nicht aufrufen';
+    public $ReturnsOrThrowsNotBoth = 'Sie müssen einen einzelnen Return Value nur einstellen';
+    public $ScenarioWithExpectMismatch = 'Szenarium muss mit der gleichen Zahl von "With" und "Expect" calls initialisiert werden';
 }
 
 class EnhanceTestFramework 
@@ -245,17 +269,24 @@ class EnhanceTestFramework
     private $Errors = array();
     private $Duration;
     private $MethodCalls = array();
-    
-    public function EnhanceTestFramework() 
+    private $Language;
+
+    public function __construct($language)
     {
-        $this->Text = TextFactory::getLanguageText();
+        $this->Text = TextFactory::getLanguageText($language);
         $this->FileSystem = new EnhanceFileSystem();
+        $this->Language = $language;
     }
-    
-    public function discoverTests($path, $isResursive = true) {
-        $phpFiles = $this->FileSystem->getFilesFromDirectory($path, $isResursive);
-        foreach ($phpFiles as $file) {
-            include_once($file);
+
+    public function discoverTests($path, $isRecursive, $excludeRules)
+    {
+        $directory = rtrim($path, '/');
+        if (is_dir($directory)) {
+            $phpFiles = $this->FileSystem->getFilesFromDirectory($directory, $isRecursive, $excludeRules);
+            foreach ($phpFiles as $file) {
+                /** @noinspection PhpIncludeInspection */
+                include_once($file);
+            }
         }
     }
     
@@ -268,7 +299,7 @@ class EnhanceTestFramework
             $output = EnhanceOutputTemplateType::Cli;
         }
         
-        $OutputTemplate = EnhanceOutputTemplateFactory::createOutputTemplate($output);
+        $OutputTemplate = EnhanceOutputTemplateFactory::createOutputTemplate($output, $this->Language);
         echo $OutputTemplate->get(
             $this->Errors, 
             $this->Results, 
@@ -302,16 +333,29 @@ class EnhanceTestFramework
         return $className . '#' . $methodName;
     }
     
-    private function getTestFixturesByParent() {
+    private function getTestFixturesByParent()
+    {
         $classes = get_declared_classes();
         foreach($classes as $className) {
-            if (get_parent_class($className) === 'EnhanceTestFixture') {
+            $this->AddClassIfTest($className);
+        }
+    }
+
+    private function AddClassIfTest($className)
+    {
+        $parentClassName = get_parent_class($className);
+        if ($parentClassName === 'EnhanceTestFixture') {
+            $instance = new $className();
+            $this->addFixture($instance);
+        } else {
+            $ancestorClassName = get_parent_class($parentClassName);
+            if ($ancestorClassName === 'EnhanceTestFixture') {
                 $instance = new $className();
                 $this->addFixture($instance);
             }
         }
     }
-    
+
     private function addFixture($class) 
     {
         $classMethods = get_class_methods($class);
@@ -334,7 +378,7 @@ class EnhanceTestFramework
     private function run() 
     {
         $start = time();
-        foreach($this->Tests as $test) {
+        foreach($this->Tests as /** @var EnhanceTest $test */ $test) {
             $result = $test->run();
             if ($result) {
                 $message = $test->getTestName() . ' - ' . $this->Text->Passed;
@@ -351,15 +395,20 @@ class EnhanceTestFramework
 
 class EnhanceFileSystem
 {
-    public function getFilesFromDirectory($directory, $isRecursive) {
+    public function getFilesFromDirectory($directory, $isRecursive, $excludeRules)
+    {
         $files = array();
         if ($handle = opendir($directory)) {
             while (false !== ($file = readdir($handle))) {
                 if ($file != '.' && $file != '..') {
+                    if ($this->isFolderExcluded($file, $excludeRules)){
+                        continue;
+                    }
+
                     if(is_dir($directory . '/' . $file)) {
                         if ($isRecursive) {
                             $dir2 = $directory . '/' . $file;
-                            $files[] = $this->getFilesFromDirectory($dir2, $isRecursive);
+                            $files[] = $this->getFilesFromDirectory($dir2, $isRecursive, $excludeRules);
                         }
                     } else {
 						if (substr($file, 0, 1) != '.'){
@@ -373,15 +422,29 @@ class EnhanceFileSystem
         return $this->flattenArray($files);
     }
 
-    public function flattenArray($array) {
-        foreach($array as $a) {
-            if(is_array($a)) {
-                $tmp = array_merge($tmp, $this->flattenArray($a));
-            } else {
-                $tmp[] = $a;
+    private function isFolderExcluded($folder, $excludeRules)
+    {
+        $folder = substr($folder, strrpos($folder, '/'));
+
+        foreach ($excludeRules as $excluded){
+            if ($folder === $excluded){
+                return true;
             }
         }
-        return $tmp;
+        return false;
+    }
+
+    public function flattenArray($array)
+    {
+        $merged = array();
+        foreach($array as $a) {
+            if(is_array($a)) {
+                $merged = array_merge($merged, $this->flattenArray($a));
+            } else {
+                $merged[] = $a;
+            }
+        }
+        return $merged;
     }
 }
 
@@ -391,7 +454,7 @@ class EnhanceTestMessage
     public $Test;
     public $IsPass;
     
-    public function EnhanceTestMessage($message, $test, $isPass)
+    public function __construct($message, $test, $isPass)
     {
         $this->Message = $message;
         $this->Test = $test;
@@ -408,7 +471,7 @@ class EnhanceTest
     private $TearDownMethod;
     private $Message;
     
-    public function EnhanceTest($class, $method)
+    public function __construct($class, $method)
     {
         $className = get_class($class);
         $this->ClassName = $className;
@@ -435,13 +498,12 @@ class EnhanceTest
     
     public function run()
     {
-        $result = false;
-        
+        /** @var $testClass iTestable */
         $testClass = new $this->ClassName();
     
         try {
             if (is_callable($this->SetUpMethod)) {
-                $testClass->SetUp();
+                $testClass->setUp();
             }
         } catch (Exception $e) { }
         
@@ -455,7 +517,7 @@ class EnhanceTest
         
         try {
             if (is_callable($this->TearDownMethod)) {
-                $testClass->TearDown();
+                $testClass->tearDown();
             }
         } catch (Exception $e) { }
         
@@ -467,7 +529,7 @@ class EnhanceProxy
 {
     private $Instance;
     
-    public function EnhanceProxy($className, $args)
+    public function __construct($className, $args)
     {
         if ($args !== null) {
             $rc = new ReflectionClass($className);
@@ -482,6 +544,7 @@ class EnhanceProxy
     {
         Enhance::log($this->Instance, $methodName);
         if ($args !== null) {
+            /** @noinspection PhpParamsInspection */
             return call_user_func_array(array($this->Instance, $methodName), $args);
         } else {
             return $this->Instance->{$methodName}();
@@ -506,11 +569,11 @@ class EnhanceMock
     private $ClassName;
     private $Expectations = array();
 
-    public function EnhanceMock($className, $isMock)
+    public function __construct($className, $isMock, $language)
     {
         $this->IsMock = $isMock;
         $this->ClassName = $className;
-        $this->Text = TextFactory::getLanguageText();
+        $this->Text = TextFactory::getLanguageText($language);
     }
     
     public function AddExpectation($expectation)
@@ -526,14 +589,16 @@ class EnhanceMock
             );
         }
         
-        foreach ($this->Expectations as $expectation) {
+        foreach ($this->Expectations as /** @var EnhanceExpectation $expectation */ $expectation) {
             if (!$expectation->verify()) {
                 $Arguments = '';
-                foreach($expectation->MethodArguments as $argument) {
-                    if (isset($Arguments[0])) {
-                        $Arguments .= ', ';
+                if (isset($expectation->MethodArguments)) {
+                    foreach($expectation->MethodArguments as $argument) {
+                        if (isset($Arguments[0])) {
+                            $Arguments .= ', ';
+                        }
+                        $Arguments .= $argument;
                     }
-                    $Arguments .= $argument;
                 }
                 
                 throw new Exception(
@@ -557,7 +622,7 @@ class EnhanceMock
     
     public function __set($propertyName, $value)
     {
-        $Expectation = $this->getReturnValue('setProperty', $propertyName, array($value));
+        $this->getReturnValue('setProperty', $propertyName, array($value));
     }
     
     private function getReturnValue($type, $methodName, $args)
@@ -575,6 +640,15 @@ class EnhanceMock
             }
             return $Expectation->ReturnValue;
         }
+
+        if ($this->IsMock)  {
+            throw new Exception(
+                $this->Text->ExpectationFailed . ' ' .
+                $this->ClassName . '->' . $methodName . '(' . $args . ') ' .
+                $this->Text->Expected . ' #0 ' .
+                $this->Text->Called . ' #1', 0);
+        }
+        return null;
     }
     
     private function getMatchingExpectation($type, $methodName, $arguments)
@@ -595,6 +669,7 @@ class EnhanceMock
                 }
             }
         }
+        return null;
     }
     
     private function argumentsMatch($arguments1, $arguments2)
@@ -627,13 +702,12 @@ class EnhanceScenario
 	private $FunctionName;
 	private $Inputs = array();
 	private $Expectations = array();
-	private $Output= array();
-	
-    public function EnhanceScenario($class, $functionName)
+
+    public function __construct($class, $functionName, $language)
     {
         $this->Class = $class;
 		$this->FunctionName = $functionName;
-        $this->Text = TextFactory::getLanguageText();
+        $this->Text = TextFactory::getLanguageText($language);
     }
     
 	public function with()
@@ -665,10 +739,10 @@ class EnhanceScenario
 			
 			if (is_float($expected)) {
 				if ((string)$expected !== (string)$actual) {
-					$exceptionText .= $this->Text->Expected . ' ' . $expected . ' ' . $this->Text->ButWas . ' ' . $actual . ' ';
+					$exceptionText .= str_replace('{0}', $expected, str_replace('{1}', $actual, $this->Text->FormatForExpectedButWas));
 				}
 			} elseif ($expected != $actual) {
-	            $exceptionText .= $this->Text->Expected . ' ' . $expected . ' ' . $this->Text->ButWas . ' ' . $actual . ' '; 
+	            $exceptionText .= str_replace('{0}', $expected, str_replace('{1}', $actual, $this->Text->FormatForExpectedButWas));
 			}			
 		}
 		
@@ -689,8 +763,9 @@ class EnhanceExpectation
     public $ExpectArguments;
     public $ExpectTimes;
     public $Type;
+    public $Text;
     
-    public function EnhanceExpectation()
+    public function __construct($language)
     {
         $this->ExpectedCalls = -1;
         $this->ActualCalls = 0;
@@ -698,6 +773,8 @@ class EnhanceExpectation
         $this->ExpectTimes = false;
         $this->ReturnException = false;
         $this->ReturnValue = null;
+        $textFactory = new TextFactory();
+        $this->Text = $textFactory->getLanguageText($language);
     }
 
     public function method($methodName)
@@ -770,25 +847,19 @@ class EnhanceAssertions
 {
     private $Text;
     
-    public function EnhanceAssertions() 
+    public function __construct($language)
     {
-        $this->Text = TextFactory::getLanguageText();
+        $this->Text = TextFactory::getLanguageText($language);
     }
 
     public function areIdentical($expected, $actual) 
     {    	
 		if (is_float($expected)) {
 			if ((string)$expected !== (string)$actual) {
-	            throw new Exception(
-	                $this->Text->Expected . ' ' . $expected . ' ' . $this->Text->ButWas . ' ' . $actual . ' ', 
-	                0
-	            );
+                throw new Exception(str_replace('{0}', $expected, str_replace('{1}', $actual, $this->Text->FormatForExpectedButWas)), 0);
 			}
 		} elseif ($expected !== $actual) {
-            throw new Exception(
-                $this->Text->Expected . ' ' . $expected . ' ' . $this->Text->ButWas . ' ' . $actual . ' ', 
-                0
-            );
+            throw new Exception(str_replace('{0}', $expected, str_replace('{1}', $actual, $this->Text->FormatForExpectedButWas)), 0);
         }
     }
     
@@ -796,36 +867,24 @@ class EnhanceAssertions
     {
         if (is_float($expected)) {
 			if ((string)$expected === (string)$actual) {
-	            throw new Exception(
-	                $this->Text->ExpectedNot . ' ' . $expected . ' ' . $this->Text->ButWas . ' ' . $actual . ' ', 
-	                0
-	            );
+                throw new Exception(str_replace('{0}', $expected, str_replace('{1}', $actual, $this->Text->FormatForExpectedNotButWas)), 0);
 			}
 		} elseif ($expected === $actual) {
-            throw new Exception(
-                $this->Text->ExpectedNot . ' ' . $expected . ' ' . $this->Text->ButWas . ' ' . $actual . ' ', 
-                0
-            );
+            throw new Exception(str_replace('{0}', $expected, str_replace('{1}', $actual, $this->Text->FormatForExpectedNotButWas)), 0);
         }
     }
     
     public function isTrue($actual)
     {
         if ($actual !== true) {
-            throw new Exception(
-                $this->Text->Expected . ' true ' . $this->Text->ButWas . ' ' . $actual . ' ', 
-                0
-            );
+            throw new Exception(str_replace('{0}', 'true', str_replace('{1}', $actual, $this->Text->FormatForExpectedButWas)), 0);
         }
     }
     
     public function isFalse($actual)
     {
         if ($actual !== false) {
-            throw new Exception(
-                $this->Text->Expected . ' false ' . $this->Text->ButWas . ' ' . $actual . ' ', 
-                0
-            );
+            throw new Exception(str_replace('{0}', 'false', str_replace('{1}', $actual, $this->Text->FormatForExpectedButWas)), 0);
         }
     }
     
@@ -833,11 +892,7 @@ class EnhanceAssertions
     {
         $result = strpos($actual, $expected);
         if ($result === false) {
-            throw new Exception(
-                $this->Text->Expected . ' ' . $expected . ' ' . $this->Text->ContainedInString . ' ' . 
-                    $this->Text->ButWas . ' ' . $actual . ' ', 
-                0
-            );
+            throw new Exception(str_replace('{0}', $expected, str_replace('{1}', $actual, $this->Text->FormatForExpectedContainsButWas)), 0);
         }
     }
     
@@ -845,31 +900,21 @@ class EnhanceAssertions
     {
         $result = strpos($actual, $expected);
         if ($result !== false) {
-            throw new Exception(
-                $this->Text->ExpectedNot . ' ' . $expected . ' ' . $this->Text->ContainedInString . ' ' . 
-                    $this->Text->ButWas . ' ' . $actual . ' ', 
-                0
-            );
+            throw new Exception(str_replace('{0}', $expected, str_replace('{1}', $actual, $this->Text->FormatForExpectedNotContainsButWas)), 0);
         }
     }
     
     public function isNull($actual)
     {
         if ($actual !== null) {
-            throw new Exception(
-                $this->Text->Expected . ' null ' . $this->Text->ButWas . ' ' . $actual . ' ', 
-                0
-            );
+            throw new Exception(str_replace('{0}', 'null', str_replace('{1}', $actual, $this->Text->FormatForExpectedButWas)), 0);
         }
     }
     
     public function isNotNull($actual)
     {
         if ($actual === null) {
-            throw new Exception(
-                $this->Text->ExpectedNot . ' null ' . $this->Text->ButWas . ' ' . $actual . ' ', 
-                0
-            );
+            throw new Exception(str_replace('{0}', 'null', str_replace('{1}', $actual, $this->Text->FormatForExpectedNotButWas)), 0);
         }
     }
 
@@ -887,10 +932,7 @@ class EnhanceAssertions
     {
         $actualType = get_class($actual);
         if ($expected !== $actualType) {
-            throw new Exception(
-                $this->Text->Expected . ' ' . $expected . ' ' . $this->Text->ButWas . ' ' . $actualType . ' ', 
-                0
-            );
+            throw new Exception(str_replace('{0}', $expected, str_replace('{1}', $actualType, $this->Text->FormatForExpectedButWas)), 0);
         };
     }
     
@@ -898,10 +940,7 @@ class EnhanceAssertions
     {
         $actualType = get_class($actual);
         if ($expected === $actualType) {
-            throw new Exception(
-                $this->Text->Expected . ' ' . $expected . ' ' . $this->Text->ButWas . ' ' . $actualType . ' ', 
-                0
-            );
+            throw new Exception(str_replace('{0}', $expected, str_replace('{1}', $actualType, $this->Text->FormatForExpectedNotButWas)), 0);
         };
     }
     
@@ -911,6 +950,7 @@ class EnhanceAssertions
 
         try {
             if ($args !== null) {
+                /** @noinspection PhpParamsInspection */
                 call_user_func_array(array($class, $methodName), $args);
             } else {
                 $class->{$methodName}();
@@ -920,7 +960,7 @@ class EnhanceAssertions
         }
         
         if (!$exception) {
-            throw new Exception($this->Text->Expected . ' ' . $this->Text->Exception, 0);
+            throw new Exception($this->Text->ExpectedExceptionNotThrown, 0);
         }
     }
 }
@@ -931,13 +971,19 @@ interface iOutputTemplate
     public function get($errors, $results, $text, $duration, $methodCalls);
 }
 
+interface iTestable
+{
+    public function setUp();
+    public function tearDown();
+}
+
 class EnhanceHtmlTemplate implements iOutputTemplate 
 {
     private $Text;
     
-    public function EnhanceHtmlTemplate()
+    public function __construct($language)
     {
-        $this->Text = TextFactory::getLanguageText();
+        $this->Text = TextFactory::getLanguageText($language);
     }
     
     public function getTemplateType()
@@ -972,7 +1018,7 @@ class EnhanceHtmlTemplate implements iOutputTemplate
             }
             $message .= '</ul></li></ul>';
         } else {
-            $message .= '<h2 class="ok">' . $text->Test . ' ' . $text->Passed . '</h2>';
+            $message .= '<h2 class="ok">' . $text->TestPassed . '</h2>';
         }
         
         $currentClass = '';
@@ -1010,7 +1056,7 @@ class EnhanceHtmlTemplate implements iOutputTemplate
             $message .= '</ul>';
         }
         
-        $message .= '<p>' . $text->TestRunTook . ' ' . $duration . ' ' . $text->Seconds . '</p>';
+        $message .= '<p>' . str_replace('{0}', $duration, $text->FormatForTestRunTook) . '</p>';
         
         return $this->getTemplateWithMessage($message);
     }
@@ -1067,10 +1113,12 @@ class EnhanceHtmlTemplate implements iOutputTemplate
 class EnhanceXmlTemplate implements iOutputTemplate
 {
     private $Text;
+    private $Tab = "    ";
+    private $CR = "\n";
     
-    public function EnhanceXmlTemplate()
+    public function __construct($language)
     {
-        $this->Text = TextFactory::getLanguageText();
+        $this->Text = TextFactory::getLanguageText($language);
     }
     
     public function getTemplateType()
@@ -1081,47 +1129,73 @@ class EnhanceXmlTemplate implements iOutputTemplate
     public function get($errors, $results, $text, $duration, $methodCalls)
     {
         $message = '';
-        $cr = "\n";
-        $tab = "    ";
         $failCount = count($errors);
-        $methodCallCount = count($methodCalls);
-        
-        $message .= '<enhance>' . $cr;
-        if ($failCount > 0) {
-            $message .= $tab . '<result>' . $text->Test . ' ' . $text->Failed . '</result>' . $cr;
-        } else {
-            $message .= $tab . '<result>' . $text->Test . ' ' . $text->Passed . '</result>' . $cr;
-        }
-        
-        $message .= $tab . '<testResults>' . $cr;
-        foreach ($errors as $error) {
-            $message .=  $tab . $tab . '<fail>' . $error->Message . '</fail>' . $cr;
-        }
 
-        foreach ($results as $result) {
-            $message .=  $tab . $tab . '<pass>' . $result->Message . '</pass>' . $cr;
-        }
-        $message .= $tab . '</testResults>' . $cr;
-        
-        $message .= $tab . '<codeCoverage>' . $cr;
-        foreach ($methodCalls as $key => $value) {
-            $message .= $this->buildCodeCoverageMessage($key, $value, $tab, $cr); 
+        $message .= '<enhance>' . $this->CR;
+        if ($failCount > 0) {
+            $message .= $this->getNode(1, 'result', $text->TestFailed);
+        } else {
+            $message .= $this->getNode(1, 'result', $text->TestPassed);
         }
         
-        $message .= $tab . '</codeCoverage>' . $cr;
-                
-        $message .= $tab . '<testRunDuration>' . $duration . '</testRunDuration>' . $cr;
-        $message .= '</enhance>' . $cr;
+        $message .= $this->Tab . '<testResults>' . $this->CR .
+            $this->getBadResults($errors) .
+            $this->getGoodResults($results) .
+            $this->Tab . '</testResults>' . $this->CR .
+            $this->Tab . '<codeCoverage>' . $this->CR .
+            $this->getCodeCoverage($methodCalls) .
+            $this->Tab . '</codeCoverage>' . $this->CR;
+
+        $message .= $this->getNode(1, 'testRunDuration', $duration) .
+            '</enhance>' . $this->CR;
         
         return $this->getTemplateWithMessage($message);
     }
 
-    private function buildCodeCoverageMessage($key, $value, $tab, $cr)
+    public function getBadResults($errors)
     {
-        return $tab . $tab . '<method>' . $cr .
-                $tab . $tab . $tab . '<name>' . str_replace('#', '-&gt;', $key) . '</name>' . $cr .
-                $tab . $tab . $tab . '<timesCalled>' . $value . '</timesCalled>' . $cr .
-                $tab . $tab . '</method>' . $cr;
+        $message = '';
+        foreach ($errors as $error) {
+            $message .= $this->getNode(2, 'fail', $error->Message);
+        }
+        return $message;
+    }
+
+    public function getGoodResults($results)
+    {
+        $message = '';
+        foreach ($results as $result) {
+            $message .= $this->getNode(2, 'pass', $result->Message);
+        }
+        return $message;
+    }
+
+    public function getCodeCoverage($methodCalls)
+    {
+        $message = '';
+        foreach ($methodCalls as $key => $value) {
+            $message .= $this->buildCodeCoverageMessage($key, $value);
+        }
+        return $message;
+    }
+
+    private function buildCodeCoverageMessage($key, $value)
+    {
+        return $this->Tab . $this->Tab . '<method>' . $this->CR .
+            $this->getNode(3, 'name', str_replace('#', '-&gt;', $key)) .
+            $this->getNode(3, 'timesCalled', $value) .
+            $this->Tab . $this->Tab . '</method>' . $this->CR;
+    }
+
+    private function getNode($tabs, $nodeName, $nodeValue)
+    {
+        $node = '';
+        for ($i = 0; $i < $tabs; ++$i){
+            $node .= $this->Tab;
+        }
+        $node .= '<' . $nodeName . '>' . $nodeValue . '</' . $nodeName . '>' . $this->CR;
+
+        return $node;
     }
 
     private function getTemplateWithMessage($content)
@@ -1134,10 +1208,11 @@ class EnhanceXmlTemplate implements iOutputTemplate
 class EnhanceCliTemplate implements iOutputTemplate 
 {
     private $Text;
+    private $CR = "\n";
     
-    public function EnhanceCliTemplate()
+    public function __construct($language)
     {
-        $this->Text = TextFactory::getLanguageText();
+        $this->Text = TextFactory::getLanguageText($language);
     }
     
     public function getTemplateType()
@@ -1147,54 +1222,73 @@ class EnhanceCliTemplate implements iOutputTemplate
     
     public function get($errors, $results, $text, $duration, $methodCalls)
     {
-        $message = '';
-        $cr = "\n";
-        $tab = "    ";
         $failCount = count($errors);
-        $methodCallCount = count($methodCalls);
-        
+
+        $resultMessage = $text->TestPassed . $this->CR;
         if ($failCount > 0) {
-            $message .= $text->Test . ' ' . $text->Failed . $cr;
-        } else {
-            $message .= $text->Test . ' ' . $text->Passed . $cr;
-        }
-        
-        foreach ($errors as $error) {
-            $message .=  $error->Message . $cr;
+            $resultMessage = $text->TestFailed . $this->CR;
         }
 
+        $message = $this->CR .
+            $resultMessage .
+            $this->CR .
+            $this->getBadResults($errors) .
+            $this->getGoodResults($results) .
+            $this->CR .
+            $this->getMethodCoverage($methodCalls) .
+            $this->CR .
+            $resultMessage .
+            str_replace('{0}', $duration, $text->FormatForTestRunTook) . $this->CR;
+        
+        return $message;
+    }
+
+    public function getBadResults($errors)
+    {
+        $message = '';
+        foreach ($errors as $error) {
+            $message .= $error->Message . $this->CR;
+        }
+        return $message;
+    }
+
+    public function getGoodResults($results)
+    {
+        $message = '';
         foreach ($results as $result) {
-            $message .=  $result->Message . $cr;
+            $message .= $result->Message . $this->CR;
         }
-        
+        return $message;
+    }
+
+    public function getMethodCoverage($methodCalls)
+    {
+        $message = '';
         foreach ($methodCalls as $key => $value) {
-            $message .= str_replace('#', '->', $key) . ':' . $value . $cr;
+            $message .= str_replace('#', '->', $key) . ':' . $value . $this->CR;
         }
-        
-        $message .= $duration . ' ' . $text->Seconds . $cr;
-        
         return $message;
     }
 }
 
 class EnhanceOutputTemplateFactory 
 {
-    public static function createOutputTemplate($type)
+    public static function createOutputTemplate($type, $language)
     {
         switch ($type) {
             case EnhanceOutputTemplateType::Xml:
-                return new EnhanceXmlTemplate();
+                return new EnhanceXmlTemplate($language);
                 break;            
             case EnhanceOutputTemplateType::Html:
-                return new EnhanceHtmlTemplate();                
+                return new EnhanceHtmlTemplate($language);
                 break;
             case EnhanceOutputTemplateType::Cli:
-                return new EnhanceCliTemplate();                
-                break;
-            default:
+                return new EnhanceCliTemplate($language);
                 break;
         }
-    }        
+
+        return new EnhanceHtmlTemplate($language);
+    }
 }
 
 class EnhanceOutputTemplateType
@@ -1204,5 +1298,14 @@ class EnhanceOutputTemplateType
     const Cli = 2;
 }
 
+class EnhanceLanguage
+{
+    const English = 'En';
+    const Deutsch = 'De';
+}
 
+class EnhanceLocalisation
+{
+    public $Language = EnhanceLanguage::English;
+}
 ?>

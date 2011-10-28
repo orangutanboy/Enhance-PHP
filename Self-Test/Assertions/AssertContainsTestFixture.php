@@ -1,11 +1,12 @@
 <?php
 class AssertContainsTestFixture extends EnhanceTestFixture
 {
+    /** @var EnhanceAssertions $target */
     private $target;
     
     public function setUp()
     {
-        $this->target = Enhance::getCodeCoverageWrapper('EnhanceAssertions');
+        $this->target = Enhance::getCodeCoverageWrapper('EnhanceAssertions', array(EnhanceLanguage::English));
     }
 
     public function assertContainsWithStringThatContains()
